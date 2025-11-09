@@ -1,0 +1,36 @@
+# Local Development Configuration (MacBook)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yaml up -d
+#
+# This configuration is for local MacBook development:
+# - Connects to mcp_gateway network for unified TLS routing
+# - Exposes service on port 8006 (accessed via gateway at https://mcp.orb.local/joplin)
+# - Also publishes port 8006 directly for legacy access and Claude Desktop stdio mode
+# - Enables debug mode
+
+services:
+  joplin-mcp-server:
+    # Publish port for direct access (optional, primarily accessed via gateway)
+    ports:
+      - "8006:8006"
+
+    # Connect to gateway network
+    networks:
+      - mcp_gateway
+
+    # Local-specific environment overrides
+    environment:
+      MCP_DEBUG: "true"
+      MCP_LOG_LEVEL: "debug"
+      # For local Joplin instance
+      JOPLIN_BASE_URL: "http://host.docker.internal:41184"
+
+    extra_hosts:
+      - "mcp.orb.local:host-gateway"  # Resolves to host's IP (gateway is on host)
+
+    labels:
+      - "dev.orbstack.domains=joplin-mcp.orb.local"
+
+networks:
+  mcp_gateway:
+    name: mcp_gateway
+    external: true

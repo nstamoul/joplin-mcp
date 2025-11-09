@@ -1,6 +1,6 @@
 # Docker Deployment Guide for Joplin MCP Server
 
-This guide explains how to deploy the Joplin MCP Server as a Docker container with streamable HTTP transport, designed to work with the MCP Gateway (Caddy reverse proxy).
+This guide explains how to deploy the Joplin MCP Server as a Docker container with streamable HTTP transport, designed to work with the MCP Gateway (Caddy reverse proxy) or Traefik.
 
 ## Table of Contents
 
@@ -8,6 +8,7 @@ This guide explains how to deploy the Joplin MCP Server as a Docker container wi
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+- [Deployment Environments](#deployment-environments)
 - [MCP Gateway Integration](#mcp-gateway-integration)
 - [Production Deployment](#production-deployment)
 - [Troubleshooting](#troubleshooting)
@@ -18,8 +19,9 @@ The Joplin MCP Server Docker setup provides:
 
 - **Streamable HTTP Transport**: Full HTTP-based MCP communication (not SSE)
 - **Production-Ready Container**: Multi-stage build, non-root user, health checks
-- **MCP Gateway Integration**: Seamless connection to Caddy reverse proxy
-- **Auto-Discovery**: Works with the mcp_gateway Docker network
+- **Multi-Environment Support**: Separate configs for local (MacBook) and production (Wyze)
+- **Central Configuration**: Uses shared `.env` file at `/opt/docker/mcp-proxy/.env`
+- **Reverse Proxy Ready**: Works with Caddy (mcp_gateway) or Traefik (t2_proxy)
 - **Health Monitoring**: Built-in health check endpoint at `/health`
 
 ## Prerequisites
@@ -27,83 +29,122 @@ The Joplin MCP Server Docker setup provides:
 1. **Docker** and **Docker Compose** installed
 2. **Joplin Desktop** running with Web Clipper enabled
 3. **Joplin API Token** (get from: Tools > Options > Web Clipper > Advanced options)
-4. **MCP Gateway** network (optional, for reverse proxy integration)
+4. **Central `.env` file** at `/opt/docker/mcp-proxy/.env`
+5. **MCP Gateway network** (for local) or **Traefik** (for production)
 
 ## Quick Start
 
-### 1. Clone and Configure
+### Local Development (MacBook)
 
 ```bash
-cd /path/to/joplin-mcp
-cp .env.example .env
-# Edit .env and set your JOPLIN_API_TOKEN
-```
+# Navigate to the MCPs directory
+cd /opt/docker/mcp-proxy/MCPs/joplin-mcp
 
-### 2. Build and Run
-
-```bash
-# Build the image
-docker compose build
-
-# Start the server
-docker compose up -d
+# Build and run using local configuration
+docker compose -f docker-compose.yml -f docker-compose.local.yaml up -d
 
 # Check logs
 docker compose logs -f joplin-mcp-server
 
 # Check health
-curl http://localhost:8000/health
+curl http://localhost:8006/health
 ```
 
-### 3. Test the Server
+### Production Deployment (Wyze)
 
 ```bash
-# The server should respond with health status
-curl http://localhost:8000/health
+# Navigate to the MCPs directory
+cd /opt/docker/mcp-proxy/MCPs/joplin-mcp
 
-# Example response:
-# {"status": "healthy", "service": "joplin-mcp", "version": "0.4.1"}
+# Build and run using production configuration
+docker compose -f docker-compose.yml -f docker-compose.wyze.yaml up -d
+
+# Check logs
+docker compose logs -f joplin-mcp-server
+
+# Check health (via Traefik)
+curl https://mcp.nstam.eu/joplin/health
 ```
 
 ## Configuration
 
-### Environment Variables
+### Central Environment File
 
-Configure the server using environment variables in `.env` or `docker-compose.yml`:
+The server uses a central `.env` file located at `/opt/docker/mcp-proxy/.env`. Add these variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JOPLIN_API_TOKEN` | (required) | Your Joplin API token |
+| `JOPLIN_BASE_URL` | `http://localhost:41184` | Joplin API base URL |
+| `MCP_DEBUG` | `false` | Enable debug mode |
+
+### Server Configuration (docker-compose.yml)
+
+The base configuration sets these defaults:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MCP_TRANSPORT` | `streamable-http` | Transport protocol (streamable-http, http, sse, stdio) |
 | `MCP_HOST` | `0.0.0.0` | Host to bind to (0.0.0.0 for all interfaces) |
-| `MCP_PORT` | `8000` | Port to listen on |
+| `MCP_PORT` | `8006` | Port to listen on |
 | `MCP_PATH` | `/mcp` | Base path for MCP endpoints |
 | `MCP_LOG_LEVEL` | `info` | Log level (debug, info, warning, error) |
-| `JOPLIN_API_TOKEN` | (required) | Your Joplin API token |
-| `JOPLIN_BASE_URL` | `http://localhost:41184` | Joplin API base URL |
-| `JOPLIN_MCP_CONFIG` | - | Optional: Path to config JSON file |
 
-### Using Configuration File
+### Optional Configuration File
 
-You can mount a configuration file instead of using environment variables:
+You can mount a configuration file for advanced settings:
 
 ```yaml
-# docker-compose.yml
-services:
-  joplin-mcp-server:
-    volumes:
-      - ./joplin-mcp.json:/config/joplin-mcp.json:ro
+# Uncomment in docker-compose.yml
+volumes:
+  - ./joplin-mcp.json:/config/joplin-mcp.json:ro
 ```
+
+## Deployment Environments
+
+### Three-File Configuration Approach
+
+The deployment uses Docker Compose override files:
+
+1. **docker-compose.yml** - Base configuration (don't use directly)
+2. **docker-compose.local.yaml** - Local MacBook development
+3. **docker-compose.wyze.yaml** - Production Wyze deployment
+
+### Local (MacBook) - mcp_gateway Network
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yaml up -d
+```
+
+Features:
+- Exposes port 8006 on host
+- Connects to `mcp_gateway` network
+- Debug mode enabled
+- Accessed via: `https://mcp.orb.local/joplin`
+
+### Production (Wyze) - Traefik Integration
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.wyze.yaml up -d
+```
+
+Features:
+- No host port binding (internal only)
+- Connects to `t2_proxy` network
+- Traefik reverse proxy labels
+- Authelia authentication
+- Accessed via: `https://mcp.nstam.eu/joplin`
 
 ## MCP Gateway Integration
 
-### Adding to Caddy Gateway
+### Caddy Gateway (Local/MacBook)
 
-To integrate with the MCP Gateway (Caddy reverse proxy), add this to your Caddyfile:
+The Caddyfile entry for Joplin MCP:
 
 ```caddyfile
-# Joplin MCP - Note management
+# Joplin MCP - Note management and knowledge base
 handle_path /joplin* {
-    reverse_proxy joplin-mcp-server:8000 {
+    reverse_proxy joplin-mcp-server:8006 {
         header_up Host {upstream_hostport}
         header_up X-Forwarded-Host {host}
         header_up X-Forwarded-Proto {scheme}
@@ -111,35 +152,27 @@ handle_path /joplin* {
 }
 ```
 
-### Update Gateway's docker-compose.yml
+Access URL: `https://mcp.orb.local/joplin/mcp`
 
-The Joplin MCP server already uses the `mcp_gateway` network. Just ensure your Caddy gateway includes:
+### Traefik Integration (Production/Wyze)
 
-```yaml
-# In your Caddy gateway's docker-compose.yml
-services:
-  mcp-gateway:
-    # ... existing config ...
-    networks:
-      - mcp_gateway
+Traefik labels are automatically configured in `docker-compose.wyze.yaml`:
 
-networks:
-  mcp_gateway:
-    name: mcp_gateway
-    driver: bridge
-```
+- **Host**: `mcp.nstam.eu`
+- **Path**: `/joplin`
+- **Port**: `8006`
+- **Middleware**: Authelia authentication + path stripping
 
-### Access Through Gateway
+Access URL: `https://mcp.nstam.eu/joplin/mcp`
 
-Once configured, access the Joplin MCP server through the gateway:
+### Testing Connection
 
 ```bash
-# Health check through gateway
+# Local (MacBook)
 curl https://mcp.orb.local/joplin/health
 
-# MCP endpoint
-# Configure your Claude Desktop or MCP client to use:
-# https://mcp.orb.local/joplin/mcp
+# Production (Wyze)
+curl -u username:password https://mcp.nstam.eu/joplin/health
 ```
 
 ## Production Deployment
@@ -151,36 +184,36 @@ curl https://mcp.orb.local/joplin/health
 3. **Network Isolation**: Use Docker networks to isolate services
 4. **TLS Termination**: Use Caddy gateway for HTTPS/TLS
 
-### Docker Network Setup
+### Docker Networks
 
-The server connects to the `mcp_gateway` network automatically. To create it:
-
+**Local (MacBook):**
 ```bash
 docker network create mcp_gateway
 ```
 
-### Connecting Joplin
-
-If Joplin is running on the host machine:
-
-```yaml
-# docker-compose.yml
-environment:
-  # Use host.docker.internal to access host services
-  - JOPLIN_BASE_URL=http://host.docker.internal:41184
+**Production (Wyze):**
+```bash
+# t2_proxy should already exist from Traefik setup
+docker network ls | grep t2_proxy
 ```
 
-If Joplin is in another container:
+### Connecting to Joplin
 
-```yaml
-# docker-compose.yml
-environment:
-  # Use container name
-  - JOPLIN_BASE_URL=http://joplin-container:41184
+**Local (MacBook)** - Add to `/opt/docker/mcp-proxy/.env`:
+```bash
+JOPLIN_BASE_URL=http://host.docker.internal:41184
+JOPLIN_API_TOKEN=your_token_here
+```
 
-networks:
-  - mcp_gateway
-  - joplin_network  # Shared network with Joplin
+**Production (Wyze)** - Add to `/opt/docker/mcp-proxy/.env`:
+```bash
+JOPLIN_BASE_URL=http://your-joplin-host:41184
+JOPLIN_API_TOKEN=your_token_here
+```
+
+If Joplin is in another Docker container:
+```bash
+JOPLIN_BASE_URL=http://joplin-container-name:41184
 ```
 
 ### Resource Limits
@@ -267,57 +300,61 @@ docker compose logs -f joplin-mcp-server
 
 ## Complete Example
 
-Here's a complete production-ready setup:
-
-### 1. Directory Structure
+### Directory Structure
 
 ```
-/opt/joplin-mcp/
-├── docker-compose.yml
-├── .env
-└── joplin-mcp.json (optional)
+/opt/docker/mcp-proxy/
+├── .env                           # Central configuration
+└── MCPs/
+    └── joplin-mcp/
+        ├── docker-compose.yml       # Base config
+        ├── docker-compose.local.yaml   # MacBook
+        ├── docker-compose.wyze.yaml    # Production
+        └── ... (source files)
 ```
 
-### 2. `.env` File
+### Central `.env` File
+
+Edit `/opt/docker/mcp-proxy/.env`:
 
 ```bash
-MCP_TRANSPORT=streamable-http
-MCP_HOST=0.0.0.0
-MCP_PORT=8000
-MCP_PATH=/mcp
-MCP_LOG_LEVEL=info
-JOPLIN_API_TOKEN=your_token_here
+# Joplin MCP Configuration
+JOPLIN_API_TOKEN=your_joplin_api_token_here
 JOPLIN_BASE_URL=http://host.docker.internal:41184
+
+# Optional
+MCP_DEBUG=false
 ```
 
-### 3. Deploy
+### Local Deployment (MacBook)
 
 ```bash
-cd /opt/joplin-mcp
-docker compose up -d
-docker compose logs -f
+cd /opt/docker/mcp-proxy/MCPs/joplin-mcp
+docker compose -f docker-compose.yml -f docker-compose.local.yaml up -d
+curl http://localhost:8006/health
+curl https://mcp.orb.local/joplin/health
 ```
 
-### 4. Add to Caddyfile
+### Production Deployment (Wyze)
+
+```bash
+cd /opt/docker/mcp-proxy/MCPs/joplin-mcp
+docker compose -f docker-compose.yml -f docker-compose.wyze.yaml up -d
+curl https://mcp.nstam.eu/joplin/health
+```
+
+### Update Caddyfile (Local)
+
+Add to `/opt/docker/mcp-gateway/Caddyfile`:
 
 ```caddyfile
 handle_path /joplin* {
-    reverse_proxy joplin-mcp-server:8000 {
+    reverse_proxy joplin-mcp-server:8006 {
         header_up Host {upstream_hostport}
         header_up X-Forwarded-Host {host}
         header_up X-Forwarded-Proto {scheme}
     }
 }
-```
-
-### 5. Access
-
-```bash
-# Direct access
-curl http://localhost:8000/health
-
-# Through gateway
-curl https://mcp.orb.local/joplin/health
 ```
 
 ## Reference

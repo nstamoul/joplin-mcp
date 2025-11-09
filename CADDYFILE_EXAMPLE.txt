@@ -1,9 +1,11 @@
 # Add this section to your MCP Gateway Caddyfile
-# to integrate Joplin MCP server
+# Location: /opt/docker/mcp-gateway/Caddyfile
+#
+# This integrates Joplin MCP server with the Caddy reverse proxy
 
 # Joplin MCP - Note management and knowledge base
 handle_path /joplin* {
-    reverse_proxy joplin-mcp-server:8000 {
+    reverse_proxy joplin-mcp-server:8006 {
         header_up Host {upstream_hostport}
         header_up X-Forwarded-Host {host}
         header_up X-Forwarded-Proto {scheme}

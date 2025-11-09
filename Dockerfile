@@ -62,7 +62,7 @@ USER mcp
 ENV NODE_ENV=production \
     MCP_TRANSPORT=streamable-http \
     MCP_HOST=0.0.0.0 \
-    MCP_PORT=8000 \
+    MCP_PORT=8006 \
     MCP_PATH=/mcp \
     MCP_LOG_LEVEL=info
 
@@ -70,11 +70,11 @@ ENV NODE_ENV=production \
 VOLUME ["/config"]
 
 # Streamable-HTTP default port
-EXPOSE 8000
+EXPOSE 8006
 
-# Health check
+# Health check (uses MCP_PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD sh -c 'curl -f http://localhost:${MCP_PORT:-8006}/health || exit 1'
 
 ENTRYPOINT ["/entrypoint.sh"]
 

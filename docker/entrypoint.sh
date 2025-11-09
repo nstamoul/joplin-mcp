@@ -29,7 +29,7 @@ if [ "$transport" = "stdio" ]; then
   exec joplin-mcp-server --transport stdio ${LOG_OPT} ${CONFIG_OPT}
 else
   host="${MCP_HOST:-0.0.0.0}"
-  port="${MCP_PORT:-8000}"
+  port="${MCP_PORT:-8006}"
   path="${MCP_PATH:-/mcp}"
   exec joplin-mcp-server --transport "$transport" --host "$host" --port "$port" --path "$path" ${LOG_OPT} ${CONFIG_OPT}
 fi
