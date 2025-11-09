@@ -11,7 +11,7 @@ if [ -z "${JOPLIN_MCP_CONFIG:-}" ] && [ -f "/config/joplin-mcp.json" ]; then
   export JOPLIN_MCP_CONFIG="/config/joplin-mcp.json"
 fi
 
-transport="${MCP_TRANSPORT:-http}"
+transport="${MCP_TRANSPORT:-streamable-http}"
 
 # Optional flags
 CONFIG_OPT=""

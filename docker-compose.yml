@@ -1,0 +1,59 @@
+# Joplin MCP Server - Docker Compose Configuration
+# Designed to work with MCP Gateway (Caddy reverse proxy)
+#
+# This service connects to the mcp_gateway network for routing through
+# the centralized Caddy reverse proxy at mcp.orb.local
+#
+# Usage:
+#   docker compose up -d        # Start service
+#   docker compose logs -f      # View logs
+#   docker compose down         # Stop service
+#   docker compose build        # Rebuild image after changes
+
+services:
+  joplin-mcp-server:
+    image: joplin-mcp-server:latest
+    container_name: joplin-mcp-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+    # Environment configuration
+    environment:
+      - NODE_ENV=production
+      - MCP_TRANSPORT=streamable-http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - MCP_PATH=/mcp
+      - MCP_LOG_LEVEL=info
+      # Joplin connection settings (adjust as needed)
+      - JOPLIN_API_TOKEN=${JOPLIN_API_TOKEN:-}
+      - JOPLIN_BASE_URL=${JOPLIN_BASE_URL:-http://localhost:41184}
+      # Uncomment for debug logging:
+      # - MCP_LOG_LEVEL=debug
+
+    # Optional: Mount config file
+    # volumes:
+    #   - ./joplin-mcp.json:/config/joplin-mcp.json:ro
+
+    # Connect to MCP Gateway network
+    networks:
+      - mcp_gateway
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      - "dev.orbstack.domains=joplin-mcp.orb.local"
+
+# External network created by MCP Gateway
+networks:
+  mcp_gateway:
+    external: true
+    name: mcp_gateway
