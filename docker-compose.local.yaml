@@ -1,0 +1,26 @@
+# Nautobot MCP - MacBook Local Configuration
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yaml up -d
+#
+# This configuration is for local MacBook development:
+# - Connects to mcp_gateway network for unified TLS routing
+# - Exposes service on ${JOPLIN_MCP_PORT:-8000} (accessed via gateway at https://mcp.orb.local/joplin)
+
+services:
+  joplin-mcp-server:
+    container_name: joplin-mcp-server
+    # Publish port for direct access (optional, primarily accessed via gateway)
+    ports:
+      - "${JOPLIN_MCP_PORT:-8000}:${JOPLIN_MCP_PORT:-8000}"
+    labels:
+      - "dev.orbstack.domains=joplin-mcp-server.orb.local"
+    extra_hosts:
+      - "mcp.orb.local:host-gateway"  # Resolves to host's IP (gateway is on host)
+    # Connect to gateway network
+    networks:
+      - mcp_gateway
+
+
+networks:
+  mcp_gateway:
+    name: mcp_gateway
+    external: true

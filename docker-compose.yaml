@@ -1,0 +1,27 @@
+services:
+  joplin-mcp-server:
+    container_name: joplin-mcp-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ../../.env
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HTTP_COMPAT: "true"
+      MCP_PORT: "${JOPLIN_MCP_PORT:-8005}"
+      MCP_HOST: 0.0.0.0
+      MCP_PATH: /mcp
+    restart: unless-stopped
+
+    # Healthcheck ensures the streamable HTTP endpoint stays responsive
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >
+          python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${JOPLIN_MCP_PORT:-8000}/health', timeout=5)"
+          >/dev/null 2>&1 || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
