@@ -1,0 +1,37 @@
+{
+  "host": "host.docker.internal",
+  "timeout": 30,
+  "verify_ssl": false,
+  "tools": {
+    "find_notes": true,
+    "find_notes_with_tag": true,
+    "find_notes_in_notebook": true,
+    "get_all_notes": true,
+    "get_note": true,
+    "get_links": true,
+    "create_note": true,
+    "create_notebook": true,
+    "create_tag": true,
+    "tag_note": true,
+    "untag_note": true,
+    "get_tags_by_note": true,
+    "list_tags": true,
+    "list_notebooks": true,
+    "update_note": true,
+    "delete_note": true,
+    "delete_notebook": true,
+    "delete_tag": true,
+    "update_notebook": true,
+    "update_tag": true,
+    "import_from_file": true,
+    "ping_joplin": true
+  },
+  "content_exposure": {
+    "search_results": "preview",
+    "individual_notes": "full",
+    "listings": "none",
+    "max_preview_length": 300,
+    "smart_toc_threshold": 2000,
+    "enable_smart_toc": true
+  }
+} 
