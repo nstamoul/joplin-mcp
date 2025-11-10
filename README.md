@@ -18,11 +18,11 @@ A **FastMCP-based Model Context Protocol (MCP) server** for [Joplin](https://jop
 
 ## What You Can Do
 
-This MCP server provides **22 optimized tools** for comprehensive Joplin integration:
+This MCP server provides **23 optimized tools** for comprehensive Joplin integration:
 
 ### **Note Management**
 - **Find & Search**: `find_notes`, `find_notes_with_tag`, `find_notes_in_notebook`, `get_all_notes`
-- **CRUD Operations**: `get_note`, `get_links`, `create_note`, `update_note`, `delete_note`
+- **CRUD Operations**: `get_note`, `get_links`, `create_note`, `update_note`, `delete_note`, `move_note`
 
 ### **Notebook Management** 
 - **Organize**: `list_notebooks`, `create_notebook`, `update_notebook`, `delete_notebook`
@@ -361,6 +361,7 @@ Note: Claude Desktop currently uses STDIO transport and does not consume HTTP/SS
 | `tools.create_note` | `true` | Allow creating new notes |
 | `tools.update_note` | `true` | Allow modifying existing notes |
 | `tools.delete_note` | `true` | Allow deleting notes |
+| `tools.move_note` | `true` | Allow moving notes between notebooks |
 | `tools.create_notebook` | `true` | Allow creating new notebooks |
 | `tools.update_notebook` | `false` | Allow modifying notebook titles |
 | `tools.delete_notebook` | `true` | Allow deleting notebooks |
@@ -477,6 +478,7 @@ Available tools: 22 tools ready
 | `create_note` | Write | Create new notes |
 | `update_note` | Update | Modify existing notes |
 | `delete_note` | Delete | Remove notes |
+| `move_note` | Update | Move notes to another notebook |
 | **Managing Notebooks** | | |
 | `list_notebooks` | Read | Browse all notebooks |
 | `create_notebook` | Write | Create new notebooks |

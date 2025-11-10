@@ -205,10 +205,11 @@ class JoplinMCPConfig:
         "get_all_notes": False,  # Get all notes - disabled by default (can fill context window)
         "get_note": True,  # Get formatted note details
         "get_links": True,  # Extract links to other notes from a note
-        # Managing notes (3 tools)
+        # Managing notes (4 tools)
         "create_note": True,  # Create new note
         "update_note": True,  # Update existing note
         "delete_note": True,  # Delete note
+        "move_note": True,  # Move note to another notebook
         # Managing notebooks (4 tools)
         "list_notebooks": True,  # List all notebooks
         "create_notebook": True,  # Create new notebook
@@ -239,7 +240,7 @@ class JoplinMCPConfig:
             "get_note",
             "get_links",
         ],
-        "notes": ["create_note", "update_note", "delete_note"],
+        "notes": ["create_note", "update_note", "delete_note", "move_note"],
         "notebooks": [
             "list_notebooks",
             "create_notebook",
