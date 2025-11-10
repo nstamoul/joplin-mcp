@@ -210,11 +210,12 @@ class JoplinMCPConfig:
         "update_note": True,  # Update existing note
         "delete_note": True,  # Delete note
         "move_note": True,  # Move note to another notebook
-        # Managing notebooks (4 tools)
+        # Managing notebooks (5 tools)
         "list_notebooks": True,  # List all notebooks
         "create_notebook": True,  # Create new notebook
         "update_notebook": False,  # Update notebook (disabled by default)
         "delete_notebook": True,  # Delete notebook
+        "move_notebook": True,  # Move notebook in hierarchy
         # Managing tags (5 tools)
         "list_tags": True,  # List all tags
         "create_tag": True,  # Create new tag
@@ -246,6 +247,7 @@ class JoplinMCPConfig:
             "create_notebook",
             "update_notebook",
             "delete_notebook",
+            "move_notebook",
         ],
         "tags": [
             "list_tags",
