@@ -30,6 +30,9 @@
 - create_notebook(title) - Create a new notebook
 """
 
+import inspect
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import time
 import logging
@@ -3646,6 +3649,38 @@ def run_compat_server(
     uvicorn.run(app, host=host, port=port, log_level=log_level)
 
 
+def list_registered_tool_names(server) -> List[str]:
+    """Names of the tools registered on ``server``, for startup logging only.
+
+    FastMCP 2 exposed ``_tool_manager._tools``; FastMCP 3 removed it in favour of
+    the async ``list_tools()``. This only feeds a log line, so a failure here
+    must never stop the server from starting.
+    """
+    manager = getattr(server, "_tool_manager", None)
+    if manager is not None:
+        return list(getattr(manager, "_tools", {}).keys())
+
+    list_tools = getattr(server, "list_tools", None)
+    if list_tools is None:
+        return []
+
+    try:
+        result = list_tools()
+        if inspect.isawaitable(result):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                result = asyncio.run(result)
+            else:
+                # Already inside a loop: run the coroutine on a private one so
+                # logging never blocks or re-enters the caller's event loop.
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    result = pool.submit(asyncio.run, result).result()
+        return [getattr(tool, "name", str(tool)) for tool in result]
+    except Exception:  # pragma: no cover - defensive, logging must not fail
+        return []
+
+
 def main(
     config_file: Optional[str] = None,
     transport: str = "stdio",
@@ -3668,7 +3703,7 @@ def main(
             _config = _module_config
             logger.info("Using module-level configuration for runtime")
 
-        registered_tools = list(mcp._tool_manager._tools.keys())
+        registered_tools = list_registered_tool_names(mcp)
         logger.info(f"FastMCP server has {len(registered_tools)} tools registered")
         logger.info(f"Registered tools: {sorted(registered_tools)}")
 
