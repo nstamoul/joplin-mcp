@@ -2490,6 +2490,52 @@ async def delete_note(
     return format_delete_success(ItemType.note, note_id)
 
 
+@create_tool("move_note", "Move note to another notebook")
+async def move_note(
+    note_id: Annotated[JoplinIdType, Field(description="Note ID to move")],
+    target_notebook_name: Annotated[RequiredStringType, Field(description="Target notebook name")],
+) -> str:
+    """Move a note to a different notebook.
+
+    Changes the note's notebook (parent_id) to relocate it to a different notebook.
+    Useful for organizing notes, archiving completed tasks, or restructuring content.
+
+    Returns:
+        str: Success message showing the note title and source/destination notebooks.
+
+    Examples:
+        - move_note("f94e4d4f6ea943ed842d87c091e50e71", "__DONE__") - Move completed todo to archive
+        - move_note("note123", "Work Projects") - Move note to Work Projects notebook
+    """
+    # Runtime validation for Jan AI compatibility while preserving functionality
+    note_id = validate_joplin_id(note_id)
+
+    client = get_joplin_client()
+
+    # Get current note to retrieve title and current notebook
+    note = client.get_note(note_id, fields=COMMON_NOTE_FIELDS)
+    note_title = getattr(note, "title", "Untitled")
+    current_parent_id = getattr(note, "parent_id", None)
+
+    # Get target notebook ID by name
+    target_notebook_id = get_notebook_id_by_name(target_notebook_name)
+
+    # Check if already in target notebook
+    if current_parent_id == target_notebook_id:
+        raise ValueError(f"Note '{note_title}' is already in notebook '{target_notebook_name}'")
+
+    # Get notebook names for the success message
+    all_notebooks = client.get_all_notebooks(fields="id,title")
+    notebook_map = {getattr(nb, "id"): getattr(nb, "title", "Untitled") for nb in all_notebooks}
+
+    source_notebook_name = notebook_map.get(current_parent_id, "Unknown")
+
+    # Move the note by updating its parent_id
+    client.modify_note(note_id, parent_id=target_notebook_id)
+
+    return f"Moved '{note_title}' from '{source_notebook_name}' to '{target_notebook_name}'"
+
+
 @create_tool("find_notes", "Find notes")
 async def find_notes(
     query: Annotated[str, Field(description="Search text or '*' for all notes")],
@@ -3071,6 +3117,83 @@ async def delete_notebook(
     # Invalidate cache since structure changed
     invalidate_notebook_map_cache()
     return format_delete_success(ItemType.notebook, notebook_id)
+
+
+@create_tool("move_notebook", "Move notebook in hierarchy")
+async def move_notebook(
+    notebook_id: Annotated[JoplinIdType, Field(description="Notebook ID to move")],
+    target_parent_name: Annotated[
+        Optional[str],
+        Field(description="Target parent notebook name (None or empty for top-level)")
+    ] = None,
+) -> str:
+    """Move a notebook in the hierarchy (make it a sub-notebook or move to top-level).
+
+    Changes the notebook's parent_id to relocate it within the notebook hierarchy.
+    Useful for reorganizing notebook structure, creating sub-notebooks from top-level notebooks,
+    or promoting sub-notebooks to top-level.
+
+    Returns:
+        str: Success message showing the notebook title and source/destination locations.
+
+    Examples:
+        - move_notebook("notebook123", "Work") - Move notebook to become sub-notebook of "Work"
+        - move_notebook("notebook123", None) - Move notebook to top-level (no parent)
+        - move_notebook("notebook123", "") - Also moves to top-level
+    """
+    # Runtime validation for Jan AI compatibility
+    notebook_id = validate_joplin_id(notebook_id)
+
+    client = get_joplin_client()
+
+    # Get current notebook to retrieve title and current parent
+    all_notebooks = client.get_all_notebooks(fields="id,title,parent_id")
+    notebook_map = {getattr(nb, "id"): nb for nb in all_notebooks}
+
+    if notebook_id not in notebook_map:
+        raise ValueError(f"Notebook with ID '{notebook_id}' not found")
+
+    current_notebook = notebook_map[notebook_id]
+    notebook_title = getattr(current_notebook, "title", "Untitled")
+    current_parent_id = getattr(current_notebook, "parent_id", None)
+
+    # Resolve target parent
+    target_parent_id = None
+    if target_parent_name and target_parent_name.strip():
+        target_parent_id = get_notebook_id_by_name(target_parent_name)
+
+        # Prevent moving notebook under itself
+        if target_parent_id == notebook_id:
+            raise ValueError(f"Cannot move notebook '{notebook_title}' under itself")
+
+        # Prevent circular references (moving under a descendant)
+        # Check if target is a descendant of the notebook being moved
+        check_id = target_parent_id
+        while check_id:
+            if check_id == notebook_id:
+                raise ValueError(
+                    f"Cannot move notebook '{notebook_title}' under its own descendant '{target_parent_name}'"
+                )
+            parent_notebook = notebook_map.get(check_id)
+            check_id = getattr(parent_notebook, "parent_id", None) if parent_notebook else None
+
+    # Check if already at target location
+    if current_parent_id == target_parent_id:
+        location = f"under '{target_parent_name}'" if target_parent_id else "at top-level"
+        raise ValueError(f"Notebook '{notebook_title}' is already {location}")
+
+    # Get location names for success message
+    title_map = {getattr(nb, "id"): getattr(nb, "title", "Untitled") for nb in all_notebooks}
+    source_location = title_map.get(current_parent_id, "top-level") if current_parent_id else "top-level"
+    target_location = target_parent_name if target_parent_id else "top-level"
+
+    # Move the notebook by updating its parent_id
+    client.modify_notebook(notebook_id, parent_id=target_parent_id or "")
+
+    # Invalidate cache since structure changed
+    invalidate_notebook_map_cache()
+
+    return f"Moved notebook '{notebook_title}' from '{source_location}' to '{target_location}'"
 
 
 # === TAG OPERATIONS ===
